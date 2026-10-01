@@ -2983,28 +2983,34 @@ async function searchHubSpotDeals(query) {
     if (isStaticEnv) {
       resultsContainer.innerHTML = `
         <div class="p-5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-3.5">
-          <div class="flex items-center space-x-2 font-bold text-amber-800">
-            <i data-lucide="info" class="w-4 h-4 text-amber-600"></i>
-            <span>Ambiente Estático (GitHub Pages) Detectado</span>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2 font-bold text-amber-800">
+              <i data-lucide="info" class="w-4 h-4 text-amber-600"></i>
+              <span>Ambiente Estático (GitHub Pages)</span>
+            </div>
+            <a href="https://app.hubspot.com/contacts/${escapeHtml(hubspotConfig.portalId)}/deals/list/view/all/?query=${encodeURIComponent(query)}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 active:scale-95 text-white rounded-xl font-bold text-[11px] shadow-sm flex items-center space-x-1.5 transition">
+              <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M18.8 7.3c-.9 0-1.7.5-2.1 1.2L12.9 6c.1-.3.1-.6.1-.9 0-1.9-1.5-3.4-3.4s-3.4 1.5-3.4 3.4c0 .8.3 1.5.7 2.1l-2.7 2.7c-.5-.3-1.1-.5-1.7-.5-1.9 0-3.4 1.5-3.4 3.4s1.5 3.4 3.4 3.4c1.6 0 2.9-1.1 3.3-2.6l4.6 2.7c-.1.4-.1.8-.1 1.2 0 2.2 1.8 4 4 4s4-1.8 4-4-1.8-4-4-4c-.7 0-1.4.2-2 .5L9.6 11c.1-.4.2-.8.2-1.2 0-.2 0-.5-.1-.7l3.8-2.5c.6.9 1.6 1.5 2.7 1.5 1.9 0 3.4-1.5 3.4-3.4s-1.5-3.4-3.4-3.4z"/></svg>
+              <span>Abrir "${escapeHtml(query)}" no CRM HubSpot ↗</span>
+            </a>
           </div>
           <p class="text-[11px] text-amber-700 leading-relaxed">
-            O <strong>GitHub Pages</strong> não executa servidores Python para consultar a API privada do HubSpot CRM diretamente pelo navegador.
+            O GitHub Pages é uma hospedagem estática. Para busca 100% integrada na nuvem, basta conectar à <strong>Vercel</strong> (gratuito) ou colar a URL / ID do Deal abaixo:
           </p>
           <div class="p-3.5 bg-white rounded-xl border border-amber-300 space-y-2.5 shadow-sm">
             <label class="block font-bold text-[11px] text-slate-800">
-              👉 Vincular Deal do HubSpot Manualmente:
+              👉 Vincular Deal do HubSpot (Cole a URL completa ou apenas o ID numérico):
             </label>
             <div class="flex items-center space-x-2">
-              <input type="url" id="inline-hubspot-deal-url" placeholder="Ex: https://app.hubspot.com/contacts/8388367/deal/..." class="flex-1 px-3 py-2 rounded-xl border border-slate-300 font-mono text-xs focus:border-orange-500 focus:outline-none">
+              <input type="text" id="inline-hubspot-deal-url" placeholder="Ex: https://app.hubspot.com/contacts/8388367/deal/53822024757 ou 53822024757" class="flex-1 px-3 py-2 rounded-xl border border-slate-300 font-mono text-xs focus:border-orange-500 focus:outline-none">
               <button type="button" onclick="applyInlineHubSpotUrl()" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-xs rounded-xl shadow transition whitespace-nowrap">
                 Vincular Deal
               </button>
             </div>
-            <p class="text-[10px] text-slate-400">Copie o link do deal aberto no seu navegador HubSpot e clique em Vincular Deal.</p>
+            <p class="text-[10px] text-slate-400">Você pode colar o link completo do deal aberto ou apenas os dígitos do ID do negócio.</p>
           </div>
           <div class="pt-1 flex items-center justify-between text-[10px] text-slate-500">
-            <span>Para busca automática: execute <code>python server.py</code> localmente ou conecte ao Vercel.</span>
-            <button type="button" onclick="openHubSpotConfigModal()" class="text-amber-800 underline font-bold">Configurar API</button>
+            <span>Para busca dinâmica na nuvem: conecte à Vercel ou execute <code>python server.py</code> localmente.</span>
+            <button type="button" onclick="openHubSpotConfigModal()" class="text-amber-800 underline font-bold">Configurar Backend</button>
           </div>
         </div>
       `;
@@ -3035,12 +3041,14 @@ async function searchHubSpotDeals(query) {
 function applyInlineHubSpotUrl() {
   const input = document.getElementById('inline-hubspot-deal-url');
   if (!input || !input.value.trim()) {
-    alert('Por favor, informe a URL do Deal no HubSpot.');
+    alert('Por favor, informe a URL ou o ID do Deal no HubSpot.');
     return;
   }
-  const url = input.value.trim();
-  if (!url.startsWith('http')) {
-    alert('A URL deve começar com https://');
+  let url = input.value.trim();
+  if (/^\d+$/.test(url)) {
+    url = `https://app.hubspot.com/contacts/${hubspotConfig.portalId}/deal/${url}`;
+  } else if (!url.startsWith('http')) {
+    alert('A URL deve começar com https:// ou informe apenas os dígitos do ID do Deal.');
     return;
   }
 
@@ -3323,9 +3331,11 @@ function openHubSpotConfigModal() {
 
   const portalInput = document.getElementById('cfg-hubspot-portal-id');
   const tokenInput = document.getElementById('cfg-hubspot-token');
+  const apiBaseInput = document.getElementById('cfg-hubspot-api-base');
 
   if (portalInput) portalInput.value = hubspotConfig.portalId;
   if (tokenInput) tokenInput.value = hubspotConfig.token;
+  if (apiBaseInput) apiBaseInput.value = hubspotConfig.apiBaseUrl || '';
 
   modal.classList.remove('hidden');
   lucide.createIcons();
@@ -3405,9 +3415,11 @@ async function testHubSpotConnection() {
 function saveHubSpotConfig() {
   const portalInput = document.getElementById('cfg-hubspot-portal-id');
   const tokenInput = document.getElementById('cfg-hubspot-token');
+  const apiBaseInput = document.getElementById('cfg-hubspot-api-base');
 
   const newPortal = portalInput ? portalInput.value.trim() : '8388367';
   const newToken = tokenInput ? tokenInput.value.trim() : hubspotConfig.token;
+  const newApiBase = apiBaseInput ? apiBaseInput.value.trim().replace(/\/+$/, '') : '';
 
   if (!newToken) {
     alert('O token da API do HubSpot é obrigatório.');
@@ -3416,8 +3428,11 @@ function saveHubSpotConfig() {
 
   hubspotConfig.portalId = newPortal || '8388367';
   hubspotConfig.token = newToken;
+  hubspotConfig.apiBaseUrl = newApiBase;
 
   localStorage.setItem('seidor_hubspot_portal', hubspotConfig.portalId);
+  localStorage.setItem('seidor_hubspot_token', hubspotConfig.token);
+  localStorage.setItem('seidor_api_base_url', hubspotConfig.apiBaseUrl);
   localStorage.setItem('seidor_hubspot_token', hubspotConfig.token);
 
   // Update header badge
