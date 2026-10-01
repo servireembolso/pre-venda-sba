@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Servinformacion Pré-Vendas | Google Cloud & Workspace Hub</title>
+  
+  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- PapaParse for high-performance CSV parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+  <!-- SheetJS for universal XLSX / XLS / CSV spreadsheet parsing with cell hyperlinks -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            seidor: {
+              dark: '#07153a',      // Pantone 2768 C (Oficial)
+              primary: '#263c7a',   // Pantone 7687 C (Oficial)
+              light: '#66b6ff',     // Pantone 2925 C (Oficial)
+              accent: '#0ea5e9',
+              surface: '#0f172a',
+              card: '#1e293b',
+              gray: '#f4f6fb',
+              border: '#e2e8f0'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Executive styling */
+    body {
+      background-color: #f8fafc;
+      color: #1e293b;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    
+    .seidor-gradient {
+      background: linear-gradient(135deg, #07153a 0%, #152554 50%, #263c7a 100%);
+    }
+
+    .seidor-glass {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+    }
+
+    .badge-danilo {
+      background: linear-gradient(135deg, #07153a 0%, #263c7a 100%);
+      border: 1px solid rgba(102, 182, 255, 0.4);
+      box-shadow: 0 4px 15px -3px rgba(38, 60, 122, 0.25);
+    }
+
+    /* Print styles for PDF export */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-only {
+        display: block !important;
+      }
+      .page-break {
+        page-break-after: always;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-seidor-light selection:text-seidor-dark">
+
+  <!-- TOP HEADER / NAVBAR -->
+  <header class="seidor-gradient text-white sticky top-0 z-40 border-b border-seidor-primary shadow-xl no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-20">
+        
+        <!-- Logo & Title -->
+        <div class="flex items-center space-x-4">
+          <div class="flex items-center space-x-3">
+            <!-- Servinformacion Badge & Symbol -->
+            <div class="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center p-2 border border-white/20 backdrop-blur-sm shadow-inner">
+              <span class="text-xl font-extrabold tracking-wider text-seidor-light">S</span>
+            </div>
+            <div>
+              <div class="flex items-center space-x-2">
+                <span class="text-2xl font-black tracking-tight text-white">Servinformacion</span>
+                <span class="text-xs uppercase px-2 py-0.5 rounded-full bg-seidor-light/20 text-seidor-light font-bold border border-seidor-light/30">
+                  Pré-Vendas
+                </span>
+              </div>
+              <p class="text-xs text-slate-300 font-medium">Pre-Sales & Delivery Intelligence Hub • Google Cloud</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Professional Authorship & Specialist Switcher -->
+        <div class="hidden md:flex items-center space-x-3 badge-danilo px-3.5 py-1.5 rounded-xl text-white">
+          <div class="relative">
+            <div id="header-avatar" class="w-8 h-8 rounded-full bg-seidor-light text-seidor-dark font-black flex items-center justify-center text-xs shadow">
+              D
+            </div>
+            <span class="absolute bottom-0 right-0 w-2 h-2 bg-emerald-400 border-2 border-seidor-dark rounded-full"></span>
+          </div>
+          <div class="text-left">
+            <div class="flex items-center space-x-1">
+              <select id="header-specialist-select" onchange="setSpecialist(this.value)" class="bg-transparent font-bold text-xs text-white focus:outline-none cursor-pointer pr-1">
+                <option value="ALL" class="text-slate-900 font-semibold">👥 Toda a Equipe</option>
+                <option value="Danilo" class="text-slate-900 font-semibold">👨‍💻 Danilo (Arquiteto GWS)</option>
+                <option value="Vinicius" class="text-slate-900 font-semibold">👨‍💻 Vinicius (Arquiteto GCP)</option>
+              </select>
+            </div>
+            <p id="header-specialist-role" class="text-[10px] text-slate-300">Servinformacion Pré-Vendas</p>
+          </div>
+        </div>
+
+        <!-- Sync Button & Settings -->
+        <div class="flex items-center space-x-2.5">
+          <button id="btn-sync-sheets" onclick="syncGoogleSheets()" class="flex items-center space-x-2 bg-seidor-light hover:bg-sky-300 text-seidor-dark px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-md transition active:scale-95">
+            <i data-lucide="refresh-cw" class="w-4 h-4" id="sync-icon"></i>
+            <span>Sincronizar Sheets</span>
+          </button>
+          
+          <button id="btn-hubspot-top" onclick="openHubSpotSearch('', '')" class="flex items-center space-x-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-400/40 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition shadow-sm active:scale-95" title="Pesquisar e Vincular Deals do HubSpot CRM">
+            <svg class="w-4 h-4 fill-current text-orange-400" viewBox="0 0 24 24"><path d="M18.8 7.3c-.9 0-1.7.5-2.1 1.2L12.9 6c.1-.3.1-.6.1-.9 0-1.9-1.5-3.4-3.4-3.4s-3.4 1.5-3.4 3.4c0 .8.3 1.5.7 2.1l-2.7 2.7c-.5-.3-1.1-.5-1.7-.5-1.9 0-3.4 1.5-3.4 3.4s1.5 3.4 3.4 3.4c1.6 0 2.9-1.1 3.3-2.6l4.6 2.7c-.1.4-.1.8-.1 1.2 0 2.2 1.8 4 4 4s4-1.8 4-4-1.8-4-4-4c-.7 0-1.4.2-2 .5L9.6 11c.1-.4.2-.8.2-1.2 0-.2 0-.5-.1-.7l3.8-2.5c.6.9 1.6 1.5 2.7 1.5 1.9 0 3.4-1.5 3.4-3.4s-1.5-3.4-3.4-3.4z"/></svg>
+            <span>Buscar no HubSpot</span>
+          </button>
+
+          <button onclick="openConfigModal()" class="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition" title="Configurar Google Sheets">
+            <i data-lucide="settings" class="w-5 h-5"></i>
+          </button>
+
+          <button onclick="window.print()" class="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition" title="Exportar Relatório Diretoria (PDF/Imprimir)">
+            <i data-lucide="file-text" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Sync Status Sub-bar -->
+      <div class="flex items-center justify-between py-2 border-t border-white/10 text-xs text-slate-300">
+        <div class="flex items-center space-x-4">
+          <span class="flex items-center space-x-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="sync-status-text">Google Sheets Conectado</span>
+          </span>
+          <span class="text-slate-400">|</span>
+          <span class="flex items-center space-x-1.5 text-orange-300 font-semibold cursor-pointer hover:underline" onclick="openHubSpotConfigModal()" title="Clique para ver configuração do HubSpot CRM">
+            <span class="w-2 h-2 rounded-full bg-orange-400 animate-pulse"></span>
+            <span id="hubspot-status-badge">HubSpot CRM Conectado (Portal 8388367)</span>
+          </span>
+        </div>
+        <div class="flex items-center space-x-4">
+          <span class="bg-white/10 px-2.5 py-0.5 rounded text-[11px] font-mono text-seidor-light">
+            Planilha Oficial: 20 Projetos & Propostas Técnicas
+          </span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- NAVIGATION TABS -->
+  <nav class="bg-white border-b border-slate-200 sticky top-20 z-30 shadow-sm no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex space-x-1 sm:space-x-4 overflow-x-auto py-2">
+        
+        <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="tab-btn active flex items-center space-x-2 px-4 py-2.5 rounded-xl font-bold text-sm text-seidor-primary bg-seidor-gray border-b-2 border-seidor-primary transition">
+          <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+          <span>Dashboard Executivo</span>
+        </button>
+
+        <button onclick="switchTab('opps')" id="tab-btn-opps" class="tab-btn flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-slate-600 hover:text-seidor-primary hover:bg-slate-50 transition">
+          <i data-lucide="badge-dollar-sign" class="w-4 h-4"></i>
+          <span>Propostas & Oportunidades</span>
+          <span id="badge-opps-count" class="bg-slate-200 text-slate-700 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+        </button>
+
+        <button onclick="switchTab('dossier')" id="tab-btn-dossier" class="tab-btn flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-slate-600 hover:text-seidor-primary hover:bg-slate-50 transition">
+          <i data-lucide="award" class="w-4 h-4"></i>
+          <span id="tab-btn-dossier-text">Dossiê do Especialista</span>
+          <span class="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-bold">Selo de Autoria</span>
+        </button>
+
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+    
+    <!-- ========================================== -->
+    <!-- 1. TAB: DASHBOARD EXECUTIVO -->
+    <!-- ========================================== -->
+    <div id="tab-dashboard" class="tab-content space-y-8">
+      
+      <!-- Executive Specialist Selector Banner -->
+      <div class="bg-gradient-to-r from-seidor-dark via-seidor-primary to-slate-900 rounded-2xl p-4 text-white shadow-md flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center space-x-3">
+          <div class="p-2.5 bg-white/10 rounded-xl backdrop-blur-sm border border-white/15">
+            <i data-lucide="shield-check" class="w-5 h-5 text-emerald-300"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs uppercase tracking-wider text-slate-300 font-bold">Visão de Pré-Vendas Ativa:</span>
+              <span id="active-specialist-badge" class="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">Toda a Equipe (Consolidado)</span>
+            </div>
+            <p class="text-xs text-slate-300">Selecione o arquiteto para filtrar o pipeline, entregáveis e selos de autoria</p>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-1.5 p-1 bg-white/10 rounded-xl backdrop-blur-sm border border-white/15" id="dashboard-specialist-pills">
+          <button onclick="setSpecialist('ALL')" class="pill-spec px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white text-slate-900 shadow-sm" data-spec="ALL">👥 Todos</button>
+          <button onclick="setSpecialist('Danilo')" class="pill-spec px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-300 hover:text-white" data-spec="Danilo">👨‍💻 Danilo</button>
+          <button onclick="setSpecialist('Vinicius')" class="pill-spec px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-300 hover:text-white" data-spec="Vinicius">👨‍💻 Vinicius</button>
+        </div>
+      </div>
+
+      <!-- Executive KPI Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        
+        <!-- KPI 1: Pipeline Total -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 relative overflow-hidden group hover:shadow-md transition">
+          <div class="absolute top-0 left-0 w-1.5 h-full bg-seidor-primary"></div>
+          <div class="flex items-center justify-between text-slate-500 mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider">Pipeline Propostas (ARR)</span>
+            <div class="p-2 bg-blue-50 text-seidor-primary rounded-xl">
+              <i data-lucide="trending-up" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div class="text-2xl lg:text-3xl font-extrabold text-slate-900" id="kpi-pipeline-total">R$ 0,00</div>
+          <div class="mt-2 flex items-center text-xs text-slate-500">
+            <span class="text-emerald-600 font-bold flex items-center mr-1.5">
+              <i data-lucide="check-circle-2" class="w-3.5 h-3.5 mr-0.5"></i> <span id="kpi-spec-subtext">Desenho Técnico</span>
+            </span>
+            <span>em propostas ativas</span>
+          </div>
+        </div>
+
+        <!-- KPI 2: Total Serviços Implantação -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 relative overflow-hidden group hover:shadow-md transition">
+          <div class="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
+          <div class="flex items-center justify-between text-slate-500 mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider">Serviços de Implantação</span>
+            <div class="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+              <i data-lucide="wrench" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div class="text-2xl lg:text-3xl font-extrabold text-slate-900" id="kpi-services-total">R$ 0,00</div>
+          <div class="mt-2 flex items-center text-xs text-slate-500">
+            <span class="text-emerald-600 font-bold flex items-center mr-1.5">
+              <i data-lucide="layers" class="w-3.5 h-3.5 mr-0.5"></i> Escopos Técnicos
+            </span>
+            <span>especificados e entregues</span>
+          </div>
+        </div>
+
+        <!-- KPI 3: Licenças Workspace -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 relative overflow-hidden group hover:shadow-md transition">
+          <div class="absolute top-0 left-0 w-1.5 h-full bg-seidor-light"></div>
+          <div class="flex items-center justify-between text-slate-500 mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider">Licenças GWS Negociadas</span>
+            <div class="p-2 bg-sky-50 text-sky-600 rounded-xl">
+              <i data-lucide="users" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div class="text-2xl lg:text-3xl font-extrabold text-slate-900" id="kpi-seats-total">0</div>
+          <div class="mt-2 flex items-center text-xs text-slate-500">
+            <span class="text-sky-600 font-bold flex items-center mr-1.5">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 mr-0.5"></i> Gemini + Enterprise
+            </span>
+            <span>contas de usuários</span>
+          </div>
+        </div>
+
+        <!-- KPI 4: Propostas Documentadas (SOW / Links) -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 relative overflow-hidden group hover:shadow-md transition">
+          <div class="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
+          <div class="flex items-center justify-between text-slate-500 mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider">Propostas Documentadas</span>
+            <div class="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+              <i data-lucide="file-check-2" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div class="text-2xl lg:text-3xl font-extrabold text-slate-900" id="kpi-deploy-active">0</div>
+          <div class="mt-2 flex items-center text-xs text-slate-500">
+            <span class="text-emerald-600 font-bold flex items-center mr-1.5">
+              <i data-lucide="link" class="w-3.5 h-3.5 mr-0.5"></i> SOW & HubSpot
+            </span>
+            <span>links vinculados</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Charts Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Chart 1: Propostas por Estágio -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Pipeline por Estágio & Propostas</h3>
+              <p class="text-xs text-slate-500">Distribuição financeira (R$) das propostas elaboradas</p>
+            </div>
+            <span class="text-xs font-semibold px-2.5 py-1 bg-slate-100 rounded-lg text-slate-600">Aba Opps</span>
+          </div>
+          <div class="h-64">
+            <canvas id="chart-stages"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 2: Distribuição por SKU Google Workspace -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Mix de SKUs Workspace</h3>
+              <p class="text-xs text-slate-500">Starter, Standard, Plus e Enterprise</p>
+            </div>
+            <span class="text-xs font-semibold px-2.5 py-1 bg-slate-100 rounded-lg text-slate-600">Licenças</span>
+          </div>
+          <div class="h-64 flex items-center justify-center">
+            <canvas id="chart-skus"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Quick Executive Summary Banner for Leadership -->
+      <div class="bg-gradient-to-r from-seidor-dark to-seidor-primary rounded-2xl p-6 text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="space-y-2">
+          <div class="flex items-center space-x-2">
+            <span class="px-2.5 py-0.5 rounded-full bg-seidor-light/20 text-seidor-light text-xs font-bold border border-seidor-light/30">
+              AUDITORIA EXECUTIVA DE PRÉ-VENDAS
+            </span>
+            <span class="text-slate-300 text-xs">Servinformacion Brasil • Prática Google</span>
+          </div>
+          <h2 class="text-xl font-bold tracking-tight">Comprovação Técnica & Comercial Conduzida por Danilo</h2>
+          <p class="text-sm text-slate-300 max-w-2xl leading-relaxed">
+            Todas as propostas, cálculos de TCO, escopos de migração, cronogramas de implantação e defesas técnicas junto aos clientes estão catalogadas e registradas com rastreabilidade direta à sua autoria técnica.
+          </p>
+        </div>
+        <div class="flex flex-col sm:flex-row items-center gap-3 shrink-0">
+          <button onclick="switchTab('dossier')" class="px-5 py-3 rounded-xl bg-seidor-light text-seidor-dark font-extrabold text-sm hover:bg-sky-300 transition shadow-md flex items-center space-x-2">
+            <i data-lucide="file-check" class="w-4 h-4"></i>
+            <span>Ver Dossiê de Autoria</span>
+          </button>
+          <button onclick="window.print()" class="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm border border-white/20 transition flex items-center space-x-2">
+            <i data-lucide="printer" class="w-4 h-4"></i>
+            <span>Imprimir para Diretoria</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Recent High-Value Opps & Deploys Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Recent Deals -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="badge-percent" class="w-5 h-5 text-seidor-primary"></i>
+              <h3 class="font-bold text-slate-900">Últimas Propostas em Negociação</h3>
+            </div>
+            <button onclick="switchTab('opps')" class="text-xs text-seidor-primary font-bold hover:underline">Ver todas</button>
+          </div>
+          <div class="divide-y divide-slate-100" id="dashboard-recent-opps">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Technical Proposals & Links -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="file-check-2" class="w-5 h-5 text-emerald-600"></i>
+              <h3 class="font-bold text-slate-900">Entregáveis Técnicos & Links Recentes</h3>
+            </div>
+            <button onclick="switchTab('opps')" class="text-xs text-seidor-primary font-bold hover:underline">Ver todas</button>
+          </div>
+          <div class="divide-y divide-slate-100" id="dashboard-recent-deploys">
+            <!-- Populated dynamically with proposals having links -->
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 2. TAB: PROPOSTAS & OPORTUNIDADES (OPPS) -->
+    <!-- ========================================== -->
+    <div id="tab-opps" class="tab-content hidden space-y-6">
+      
+      <!-- Toolbar & Filters -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        
+        <div class="flex flex-1 w-full md:w-auto items-center space-x-3">
+          <div class="relative flex-1">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5"></i>
+            <input type="text" id="opps-search" oninput="filterOpps()" placeholder="Buscar por cliente, comercial parceiro, SKU ou status..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-seidor-primary">
+          </div>
+          
+          <select id="opps-prevenda-filter" onchange="onOppsSpecialistFilterChange(this.value)" class="py-2.5 px-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 bg-white">
+            <option value="ALL">👥 Todos os Pré-Vendas</option>
+            <option value="Danilo">👨‍💻 Danilo (Arquiteto GWS)</option>
+            <option value="Vinicius">👨‍💻 Vinicius (Arquiteto GCP)</option>
+          </select>
+
+          <select id="opps-stage-filter" onchange="filterOpps()" class="py-2.5 px-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 bg-white">
+            <option value="ALL">Todos os Estágios</option>
+            <option value="Fechado Ganho">Fechado Ganho</option>
+            <option value="Negociação">Negociação</option>
+            <option value="Proposta Técnica">Proposta Técnica / Apresentada</option>
+            <option value="Qualificação">Qualificação / PoC</option>
+          </select>
+        </div>
+
+        <div class="flex items-center space-x-2.5 w-full md:w-auto justify-end">
+          <button onclick="triggerFileImport()" class="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow transition flex items-center space-x-2" title="Importar arquivo Excel (.xlsx) ou CSV do computador">
+            <i data-lucide="file-up" class="w-4 h-4"></i>
+            <span>Importar Planilha</span>
+          </button>
+          <input type="file" id="input-import-file" accept=".xlsx,.xls,.csv" onchange="handleFileInputChange(event)" class="hidden">
+
+          <button onclick="openNewRecordModal('opp')" class="px-4 py-2.5 rounded-xl bg-seidor-dark hover:bg-seidor-primary text-white font-bold text-sm shadow transition flex items-center space-x-2">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>Nova Oportunidade</span>
+          </button>
+          
+          <button onclick="exportOppsCSV()" class="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition" title="Exportar para Excel / CSV">
+            <i data-lucide="download" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Opps Data Table -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse" id="opps-table">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <th class="py-3.5 px-4">Cliente / Demanda</th>
+                <th class="py-3.5 px-4">AM Responsável</th>
+                <th class="py-3.5 px-4">Data Proposta</th>
+                <th class="py-3.5 px-4 text-center">Status</th>
+                <th class="py-3.5 px-4">Escopo & Entregável</th>
+                <th class="py-3.5 px-4 text-center">Entregáveis & Links (SOW / HubSpot)</th>
+                <th class="py-3.5 px-4 text-center">Pré-Vendas (Autoria)</th>
+                <th class="py-3.5 px-4 text-center">Ações</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-sm" id="opps-tbody">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+        <div id="opps-empty" class="hidden p-12 text-center text-slate-400">
+          <i data-lucide="folder-search" class="w-12 h-12 mx-auto mb-2 text-slate-300"></i>
+          <p class="font-medium">Nenhuma oportunidade encontrada com esses filtros.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 3. TAB: DOSSIÊ DO ESPECIALISTA (SELO DE AUTORIA) -->
+    <!-- ========================================== -->
+    <div id="tab-dossier" class="tab-content hidden space-y-8">
+      
+      <!-- Dossier Specialist Switcher Bar -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center space-x-2 text-sm text-slate-700">
+          <i data-lucide="user-check" class="w-4 h-4 text-seidor-primary"></i>
+          <span class="font-bold">Especialista Ativo no Dossiê:</span>
+          <span class="text-xs text-slate-500">(Alterne para gerar o dossiê individual ou consolidado)</span>
+        </div>
+        <div class="flex items-center space-x-1.5 p-1 bg-slate-100 rounded-xl" id="dossier-specialist-pills">
+          <button onclick="setSpecialist('ALL')" class="pill-spec px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white text-slate-900 shadow-sm" data-spec="ALL">👥 Todos (Equipe)</button>
+          <button onclick="setSpecialist('Danilo')" class="pill-spec px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900" data-spec="Danilo">👨‍💻 Danilo</button>
+          <button onclick="setSpecialist('Vinicius')" class="pill-spec px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900" data-spec="Vinicius">👨‍💻 Vinicius</button>
+        </div>
+      </div>
+
+      <!-- Executive Official Dossier Header -->
+      <div class="bg-white rounded-2xl border-2 border-seidor-primary/30 shadow-md p-8 relative overflow-hidden">
+        <div class="absolute -right-10 -bottom-10 opacity-5 pointer-events-none select-none">
+          <span class="text-[100px] lg:text-[130px] font-black text-seidor-primary tracking-tighter" id="dossier-watermark">SERVINFORMACION</span>
+        </div>
+
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b border-slate-200">
+          <div class="flex items-center space-x-4">
+            <div class="w-16 h-16 rounded-2xl bg-seidor-dark text-white font-black text-2xl flex items-center justify-center border-2 border-seidor-light shadow-md" id="dossier-avatar">
+              D
+            </div>
+            <div>
+              <div class="flex items-center space-x-2">
+                <h1 class="text-2xl font-black text-slate-900" id="dossier-name">Danilo</h1>
+                <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-300" id="dossier-badge">
+                  Pré-Vendas & Soluções Google
+                </span>
+              </div>
+              <p class="text-sm font-semibold text-slate-600" id="dossier-company">Servinformacion Brasil • Prática Google Cloud & Workspace</p>
+              <p class="text-xs text-slate-400 mt-0.5">Registro de Propostas, Arquiteturas e Condução Técnica</p>
+            </div>
+          </div>
+
+          <div class="text-left md:text-right">
+            <span class="inline-block px-3 py-1 bg-slate-100 rounded-lg text-xs font-mono text-slate-600 font-semibold mb-1" id="dossier-doc-id">
+              Doc. ID: SERV-GWS-DANILO-2026
+            </span>
+            <div class="text-xs text-slate-500">Documento Oficial para Apresentação à Diretoria</div>
+            <div class="text-xs font-bold text-emerald-600">Comprovação Técnica Auditada</div>
+          </div>
+        </div>
+
+        <!-- Metric Highlights of Impact -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+            <span class="text-xs font-bold uppercase text-slate-500">Pipeline Conduzido</span>
+            <div class="text-xl font-black text-seidor-dark mt-1" id="dossier-pipeline">R$ 0,00</div>
+            <span class="text-[11px] text-slate-500">Propostas elaboradas</span>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+            <span class="text-xs font-bold uppercase text-slate-500">Receita Serviços (Deploy)</span>
+            <div class="text-xl font-black text-emerald-600 mt-1" id="dossier-services">R$ 0,00</div>
+            <span class="text-[11px] text-slate-500" id="dossier-services-sub">Escopos técnicos Danilo</span>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+            <span class="text-xs font-bold uppercase text-slate-500">Licenças Especificadas</span>
+            <div class="text-xl font-black text-sky-600 mt-1" id="dossier-seats">0</div>
+            <span class="text-[11px] text-slate-500">Google Workspace</span>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+            <span class="text-xs font-bold uppercase text-slate-500">Propostas Documentadas</span>
+            <div class="text-xl font-black text-emerald-600 mt-1" id="dossier-deploys">0</div>
+            <span class="text-[11px] text-slate-500">SOW & HubSpot vinculados</span>
+          </div>
+        </div>
+
+        <!-- Technical Responsibility Declaration -->
+        <div class="mt-6 p-4 rounded-xl bg-blue-50/70 border border-blue-200 text-xs text-seidor-primary leading-relaxed" id="dossier-declaration">
+          <strong>Declaração de Autoria Técnica:</strong> Este relatório consolida todas as oportunidades, dimensionamentos de infraestrutura, planos de migração (Exchange/M365 para Google Workspace), cálculos de licenciamento e defesas técnicas com clientes elaboradas e defendidas diretamente pelo especialista <strong>Danilo</strong> em parceria com a equipe comercial da <strong>Servinformacion Pré-Vendas</strong>.
+        </div>
+
+      </div>
+
+      <!-- Detail list of technical deliveries -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center space-x-2">
+          <i data-lucide="award" class="w-5 h-5 text-seidor-primary"></i>
+          <span id="dossier-list-title">Rastreabilidade de Entregas & Propostas de Danilo</span>
+        </h3>
+        
+        <div class="divide-y divide-slate-100" id="dossier-list">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ========================================== -->
+  <!-- CONFIGURATION MODAL (GOOGLE SHEETS & PLANILHAS MULTI-ARQUITETO) -->
+  <!-- ========================================== -->
+  <div id="modal-config" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-3xl w-full p-6 md:p-8 shadow-2xl border border-slate-200 space-y-6 my-8 max-h-[90vh] overflow-y-auto">
+      
+      <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+        <div class="flex items-center space-x-3">
+          <div class="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-inner">
+            <i data-lucide="file-spreadsheet" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-slate-900">Gerenciador de Planilhas da Equipe</h3>
+            <p class="text-xs text-slate-500">Planilhas independentes para Danilo (GWS) e Vinicius (GCP) com consolidação automática</p>
+          </div>
+        </div>
+        <button onclick="closeConfigModal()" class="text-slate-400 hover:text-slate-600 p-2">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Live status feedback container -->
+      <div id="cfg-sync-feedback" class="hidden p-3 rounded-xl text-xs font-semibold"></div>
+
+      <!-- Arquitetos Side-by-Side Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        
+        <!-- CARD 1: DANILO (GWS) -->
+        <div class="p-5 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-4 flex flex-col justify-between">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xs font-black shadow-sm">DG</span>
+                <div>
+                  <h4 class="text-sm font-bold text-slate-900">👨‍💻 Danilo</h4>
+                  <span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Arquiteto GWS (Google Workspace)</span>
+                </div>
+              </div>
+              <span id="badge-danilo-count" class="text-[11px] font-bold text-emerald-800 bg-emerald-200/60 px-2.5 py-1 rounded-lg">6 propostas</span>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                Link ou ID da Planilha do Danilo
+              </label>
+              <input type="text" id="cfg-sheet-url-danilo" placeholder="Cole a URL ou ID do Google Sheets..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono focus:border-emerald-500 focus:outline-none bg-white">
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                Aba da Planilha (Opcional)
+              </label>
+              <input type="text" id="cfg-sheet-opps-danilo" value="Página1" placeholder="Página1 (ou deixe vazio)" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium bg-white">
+            </div>
+
+            <p class="text-[11px] text-emerald-900 leading-relaxed">
+              💡 As atualizações do Danilo são adicionadas sem interferir na planilha do Vinicius.
+            </p>
+          </div>
+
+          <div class="pt-2 border-t border-emerald-200/70 space-y-2">
+            <button onclick="syncSpecialistSheets('Danilo')" class="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center space-x-1.5">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span>Sincronizar Sheets do Danilo</span>
+            </button>
+            <button onclick="triggerFileImport('Danilo')" class="w-full py-2 px-3 bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5">
+              <i data-lucide="file-up" class="w-3.5 h-3.5"></i>
+              <span>Carregar Arquivo (.xlsx/.csv) Danilo</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- CARD 2: VINICIUS (GCP) -->
+        <div class="p-5 rounded-2xl bg-indigo-50/50 border border-indigo-200 space-y-4 flex flex-col justify-between">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xs font-black shadow-sm">VG</span>
+                <div>
+                  <h4 class="text-sm font-bold text-slate-900">👨‍💻 Vinicius</h4>
+                  <span class="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">Arquiteto GCP (Google Cloud)</span>
+                </div>
+              </div>
+              <span id="badge-vinicius-count" class="text-[11px] font-bold text-indigo-800 bg-indigo-200/60 px-2.5 py-1 rounded-lg">20 propostas</span>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                Link ou ID da Planilha do Vinicius
+              </label>
+              <input type="text" id="cfg-sheet-url-vinicius" value="https://docs.google.com/spreadsheets/d/18W3pM9p7R86obA0vAFlkl6NrLzNjk3Aa9dVlipGi7R4/edit" placeholder="Cole a URL ou ID do Google Sheets..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono focus:border-indigo-500 focus:outline-none bg-white">
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                Aba da Planilha (Opcional)
+              </label>
+              <input type="text" id="cfg-sheet-opps-vinicius" value="Página1" placeholder="Página1 (ou deixe vazio)" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium bg-white">
+            </div>
+
+            <p class="text-[11px] text-indigo-900 leading-relaxed">
+              💡 Planilha oficial conectada com 20 oportunidades ativas (Tokio Marine, Nexti, etc).
+            </p>
+          </div>
+
+          <div class="pt-2 border-t border-indigo-200/70 space-y-2">
+            <button onclick="syncSpecialistSheets('Vinicius')" class="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center space-x-1.5">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span>Sincronizar Sheets do Vinicius</span>
+            </button>
+            <button onclick="triggerFileImport('Vinicius')" class="w-full py-2 px-3 bg-white hover:bg-indigo-100 text-indigo-800 border border-indigo-300 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5">
+              <i data-lucide="file-up" class="w-3.5 h-3.5"></i>
+              <span>Carregar Arquivo (.xlsx/.csv) Vinicius</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Sync Both Bar -->
+      <div class="p-4 rounded-2xl bg-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center space-x-3 text-left">
+          <div class="w-9 h-9 rounded-xl bg-seidor-primary/30 text-seidor-primary flex items-center justify-center flex-shrink-0">
+            <i data-lucide="layers" class="w-5 h-5 text-white"></i>
+          </div>
+          <div>
+            <h5 class="text-xs font-bold text-white">Sincronização Consolidada da Equipe</h5>
+            <p class="text-[11px] text-slate-400">Atualiza as duas planilhas em paralelo mantendo o histórico de ambos unificado</p>
+          </div>
+        </div>
+        <button onclick="syncAllSpecialistsSheets()" class="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-indigo-600 hover:opacity-90 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center space-x-2 flex-shrink-0">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          <span>Sincronizar Ambas as Planilhas</span>
+        </button>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="flex items-center justify-between pt-4 border-t border-slate-200">
+        <button onclick="useMockData()" class="text-xs font-bold text-slate-500 hover:text-rose-600 transition">
+          Restaurar Dados Padrão (Demo)
+        </button>
+
+        <div class="flex items-center space-x-3">
+          <button onclick="closeConfigModal()" class="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 text-sm font-semibold">
+            Fechar
+          </button>
+          <button onclick="saveSpecialistSheetUrls()" class="px-5 py-2 rounded-xl bg-seidor-primary hover:bg-seidor-dark text-white text-sm font-bold shadow transition flex items-center space-x-1.5">
+            <i data-lucide="save" class="w-4 h-4"></i>
+            <span>Salvar Links</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: ESCOLHA DE PRÉ-VENDA PARA IMPORTAÇÃO -->
+  <!-- ========================================== -->
+  <div id="modal-choose-specialist" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-5">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <i data-lucide="file-up" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-slate-900">Importar Planilha</h4>
+            <p class="text-[11px] text-slate-500">Selecione o arquiteto dono das propostas</p>
+          </div>
+        </div>
+        <button onclick="closeSpecialistChoiceModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-600">
+        As propostas importadas serão associadas ao perfil selecionado, preservando intactas as oportunidades do outro arquiteto:
+      </p>
+
+      <div class="space-y-2.5">
+        <button onclick="confirmSpecialistImport('Danilo')" class="w-full p-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100/80 transition flex items-center justify-between text-left group">
+          <div class="flex items-center space-x-3">
+            <span class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">DG</span>
+            <div>
+              <p class="text-xs font-bold text-slate-900">👨‍💻 Danilo</p>
+              <p class="text-[10px] text-emerald-700">Arquiteto GWS (Google Workspace)</p>
+            </div>
+          </div>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-emerald-600 group-hover:translate-x-0.5 transition"></i>
+        </button>
+
+        <button onclick="confirmSpecialistImport('Vinicius')" class="w-full p-3 rounded-2xl border border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100/80 transition flex items-center justify-between text-left group">
+          <div class="flex items-center space-x-3">
+            <span class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xs font-bold">VG</span>
+            <div>
+              <p class="text-xs font-bold text-slate-900">👨‍💻 Vinicius</p>
+              <p class="text-[10px] text-indigo-700">Arquiteto GCP (Google Cloud Platform)</p>
+            </div>
+          </div>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-indigo-600 group-hover:translate-x-0.5 transition"></i>
+        </button>
+
+        <button onclick="confirmSpecialistImport('AUTO')" class="w-full p-3 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between text-left group">
+          <div class="flex items-center space-x-3">
+            <span class="w-8 h-8 rounded-xl bg-slate-700 text-white flex items-center justify-center text-xs font-bold">👥</span>
+            <div>
+              <p class="text-xs font-bold text-slate-900">Detectar Automaticamente</p>
+              <p class="text-[10px] text-slate-500">Usar a coluna "Pré-Vendas (Autoria)" do arquivo</p>
+            </div>
+          </div>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition"></i>
+        </button>
+      </div>
+
+      <div class="pt-2 flex justify-end">
+        <button onclick="closeSpecialistChoiceModal()" class="px-4 py-2 rounded-xl text-slate-500 hover:bg-slate-100 text-xs font-semibold">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: DETALHES DE PROPOSTA / DEPLOY -->
+  <!-- ========================================== -->
+  <div id="modal-details" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-6 md:p-8 shadow-2xl border border-slate-200 space-y-5">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <div class="flex items-center space-x-2">
+          <span id="detail-type-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800">Proposta</span>
+          <h3 id="detail-title" class="text-lg font-bold text-slate-900">Detalhes da Oportunidade</h3>
+        </div>
+        <button onclick="closeDetailsModal()" class="text-slate-400 hover:text-slate-600 p-2">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="detail-body" class="space-y-4 text-sm text-slate-700">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <div class="pt-4 border-t border-slate-200 flex justify-end">
+        <button onclick="closeDetailsModal()" class="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: NOVA PROPOSTA / OPORTUNIDADE COM LINK -->
+  <!-- ========================================== -->
+  <div id="modal-new-record" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-6 md:p-8 shadow-2xl border border-slate-200 space-y-5 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <div class="flex items-center space-x-2">
+          <div class="p-2 bg-seidor-primary/10 text-seidor-primary rounded-xl">
+            <i data-lucide="file-plus" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-slate-900">Cadastrar Nova Proposta / Oportunidade</h3>
+            <p class="text-xs text-slate-500">Adicione um novo entregável técnico e vincule o link da proposta</p>
+          </div>
+        </div>
+        <button onclick="closeNewRecordModal()" class="text-slate-400 hover:text-slate-600 p-2">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="form-new-opp" onsubmit="saveNewOpportunity(event)" class="space-y-4 text-xs">
+        <div>
+          <label class="block font-bold uppercase text-slate-700 mb-1">Nome do Cliente *</label>
+          <input type="text" id="new-opp-cliente" required placeholder="Ex: Banco Itaú, Porto Seguro, TOTVS..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-seidor-primary focus:outline-none">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold uppercase text-slate-700 mb-1">Pré-Vendas Responsável *</label>
+            <select id="new-opp-prevenda" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-800 focus:border-seidor-primary focus:outline-none">
+              <option value="Danilo">👨‍💻 Danilo (Arquiteto GWS)</option>
+              <option value="Vinicius">👨‍💻 Vinicius (Arquiteto GWS)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-bold uppercase text-slate-700 mb-1">AM Comercial Parceiro *</label>
+            <select id="new-opp-comercial" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-800 focus:border-seidor-primary focus:outline-none">
+              <option value="Renato">Renato</option>
+              <option value="Mirela">Mirela</option>
+              <option value="Bruno">Bruno</option>
+              <option value="Thiago">Thiago</option>
+              <option value="Veronica">Veronica</option>
+              <option value="Outro">Outro Comercial</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold uppercase text-slate-700 mb-1">Solução / SKU *</label>
+          <select id="new-opp-sku" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-800 focus:border-seidor-primary focus:outline-none">
+            <option value="Gemini Enterprise">Gemini Enterprise</option>
+            <option value="Google Workspace">Google Workspace</option>
+            <option value="GCP Cloud Migration">GCP Cloud Migration</option>
+            <option value="GCP Transfer Billing">GCP Transfer Billing</option>
+            <option value="Google Earth Platform">Google Earth Platform</option>
+            <option value="Bolsa de Horas GCP">Bolsa de Horas GCP</option>
+            <option value="GCP Foundation & Consultoria">GCP Foundation & Consultoria</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold uppercase text-slate-700 mb-1">Qtd. de Licenças / Contas</label>
+            <input type="number" id="new-opp-licencas" min="0" placeholder="Ex: 500" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-seidor-primary focus:outline-none">
+          </div>
+
+          <div>
+            <label class="block font-bold uppercase text-slate-700 mb-1">Status da Oportunidade</label>
+            <select id="new-opp-status" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-800 focus:border-seidor-primary focus:outline-none">
+              <option value="Proposta Técnica Entregue">Proposta Técnica Entregue</option>
+              <option value="Em Negociação">Em Negociação</option>
+              <option value="Fechado Ganho">Fechado Ganho</option>
+              <option value="Em Elaboração">Em Elaboração</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- LINK DA PROPOSTA SECTION -->
+        <div class="p-4 rounded-2xl bg-blue-50/70 border border-blue-200 space-y-3">
+          <div class="flex items-center space-x-2 text-seidor-primary font-bold">
+            <i data-lucide="link-2" class="w-4 h-4"></i>
+            <span>Link da Proposta Técnica / Comercial (Google Docs / Slides)</span>
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">URL Completa da Proposta ou SOW</label>
+            <input type="url" id="new-opp-doc-url" placeholder="https://docs.google.com/document/d/... ou /presentation/d/..." class="w-full px-3.5 py-2 rounded-xl border border-blue-300 text-xs font-mono bg-white focus:border-seidor-primary focus:outline-none">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Título do Documento</label>
+              <input type="text" id="new-opp-doc-title" placeholder="Ex: SOW Migração - DAF" class="w-full px-3 py-2 rounded-xl border border-blue-300 text-xs bg-white focus:border-seidor-primary focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Tipo de Formato</label>
+              <select id="new-opp-doc-tipo" class="w-full px-3 py-2 rounded-xl border border-blue-300 text-xs bg-white focus:border-seidor-primary focus:outline-none">
+                <option value="Google Docs">Google Docs (SOW / Documento)</option>
+                <option value="Google Slides">Google Slides (Apresentação / Pitch)</option>
+                <option value="HubSpot">Link HubSpot (CRM)</option>
+                <option value="PDF">Arquivo PDF / Drive</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- LINK HUBSPOT DEAL SECTION -->
+        <div class="p-4 rounded-2xl bg-orange-50/70 border border-orange-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2 text-orange-700 font-bold">
+              <svg class="w-4 h-4 fill-current text-orange-600" viewBox="0 0 24 24"><path d="M18.8 7.3c-.9 0-1.7.5-2.1 1.2L12.9 6c.1-.3.1-.6.1-.9 0-1.9-1.5-3.4-3.4s-3.4 1.5-3.4 3.4c0 .8.3 1.5.7 2.1l-2.7 2.7c-.5-.3-1.1-.5-1.7-.5-1.9 0-3.4 1.5-3.4 3.4s1.5 3.4 3.4 3.4c1.6 0 2.9-1.1 3.3-2.6l4.6 2.7c-.1.4-.1.8-.1 1.2 0 2.2 1.8 4 4 4s4-1.8 4-4-1.8-4-4-4c-.7 0-1.4.2-2 .5L9.6 11c.1-.4.2-.8.2-1.2 0-.2 0-.5-.1-.7l3.8-2.5c.6.9 1.6 1.5 2.7 1.5 1.9 0 3.4-1.5 3.4-3.4s-1.5-3.4-3.4-3.4z"/></svg>
+              <span>Link da Oportunidade no HubSpot (CRM)</span>
+            </div>
+            <button type="button" onclick="openHubSpotSearchForNewOpp()" class="px-2.5 py-1 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold rounded-lg text-[11px] flex items-center space-x-1 transition shadow-sm" title="Pesquisar Deals no HubSpot">
+              <i data-lucide="search" class="w-3 h-3"></i>
+              <span>Buscar no HubSpot</span>
+            </button>
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">URL Completa do Deal no HubSpot</label>
+            <input type="url" id="new-opp-hubspot-url" placeholder="https://app.hubspot.com/contacts/.../deal/..." class="w-full px-3.5 py-2 rounded-xl border border-orange-300 text-xs font-mono bg-white focus:border-orange-500 focus:outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold uppercase text-slate-700 mb-1">Escopo Técnico / Entregável</label>
+          <textarea id="new-opp-escopo" rows="2" placeholder="Resumo da arquitetura, dimensionamento ou serviços propostos pelo especialista..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:border-seidor-primary focus:outline-none"></textarea>
+        </div>
+
+        <div class="pt-3 border-t border-slate-200 flex items-center justify-end space-x-3">
+          <button type="button" onclick="closeNewRecordModal()" class="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold text-xs">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-seidor-primary hover:bg-seidor-dark text-white font-bold text-xs shadow transition flex items-center space-x-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Salvar Proposta com Link</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- MODAL: PESQUISA E VINCULAÇÃO HUBSPOT CRM -->
+  <!-- ========================================== -->
+  <div id="modal-hubspot-search" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-6 md:p-7 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <div class="flex items-center space-x-2.5">
+          <div class="p-2.5 bg-orange-500/10 text-orange-600 rounded-2xl">
+            <svg class="w-6 h-6 fill-current text-orange-500" viewBox="0 0 24 24"><path d="M18.8 7.3c-.9 0-1.7.5-2.1 1.2L12.9 6c.1-.3.1-.6.1-.9 0-1.9-1.5-3.4-3.4s-3.4 1.5-3.4 3.4c0 .8.3 1.5.7 2.1l-2.7 2.7c-.5-.3-1.1-.5-1.7-.5-1.9 0-3.4 1.5-3.4 3.4s1.5 3.4 3.4 3.4c1.6 0 2.9-1.1 3.3-2.6l4.6 2.7c-.1.4-.1.8-.1 1.2 0 2.2 1.8 4 4 4s4-1.8 4-4-1.8-4-4-4c-.7 0-1.4.2-2 .5L9.6 11c.1-.4.2-.8.2-1.2 0-.2 0-.5-.1-.7l3.8-2.5c.6.9 1.6 1.5 2.7 1.5 1.9 0 3.4-1.5 3.4-3.4s-1.5-3.4-3.4-3.4z"/></svg>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+              <span>Pesquisar Deal no HubSpot CRM</span>
+              <span class="text-[11px] px-2 py-0.5 rounded-full font-bold bg-orange-100 text-orange-800">Portal 8388367</span>
+            </h3>
+            <p id="hubspot-search-subtitle" class="text-xs text-slate-500">Busque oportunidades no CRM HubSpot da Servinformacion para vincular às propostas técnicas</p>
+          </div>
+        </div>
+        <button onclick="closeHubSpotSearch()" class="text-slate-400 hover:text-slate-600 p-2">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Hidden input to store target oppId -->
+      <input type="hidden" id="hubspot-target-opp-id" value="">
+
+      <!-- Search Bar -->
+      <form onsubmit="handleHubSpotSearchSubmit(event)" class="flex items-center space-x-2">
+        <div class="relative flex-1">
+          <input type="text" id="hubspot-search-input" placeholder="Digite o nome do cliente, empresa ou deal no HubSpot..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400"></i>
+        </div>
+        <button type="submit" id="btn-hubspot-exec-search" class="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-xs rounded-xl shadow transition flex items-center space-x-1.5">
+          <i data-lucide="search" class="w-4 h-4"></i>
+          <span>Buscar Deals</span>
+        </button>
+      </form>
+
+      <!-- Target Opp Notice (if searching for a specific opp) -->
+      <div id="hubspot-target-banner" class="hidden p-3 rounded-xl bg-orange-50 border border-orange-200 text-xs text-orange-800 flex items-center justify-between">
+        <span id="hubspot-target-text">Vincular selecionado à proposta: <strong>Cliente</strong></span>
+        <button type="button" onclick="clearHubSpotTarget()" class="text-orange-600 hover:underline font-bold text-[11px]">Remover vínculo específico</button>
+      </div>
+
+      <!-- Search Results Container -->
+      <div id="hubspot-search-results" class="flex-1 overflow-y-auto space-y-2.5 min-h-[220px] max-h-[380px] pr-1">
+        <div class="py-12 text-center text-slate-400 text-xs">
+          <svg class="w-10 h-10 fill-current text-slate-300 mx-auto mb-2" viewBox="0 0 24 24"><path d="M18.8 7.3c-.9 0-1.7.5-2.1 1.2L12.9 6c.1-.3.1-.6.1-.9 0-1.9-1.5-3.4-3.4s-3.4 1.5-3.4 3.4c0 .8.3 1.5.7 2.1l-2.7 2.7c-.5-.3-1.1-.5-1.7-.5-1.9 0-3.4 1.5-3.4 3.4s1.5 3.4 3.4 3.4c1.6 0 2.9-1.1 3.3-2.6l4.6 2.7c-.1.4-.1.8-.1 1.2 0 2.2 1.8 4 4 4s4-1.8 4-4-1.8-4-4-4c-.7 0-1.4.2-2 .5L9.6 11c.1-.4.2-.8.2-1.2 0-.2 0-.5-.1-.7l3.8-2.5c.6.9 1.6 1.5 2.7 1.5 1.9 0 3.4-1.5 3.4-3.4s-1.5-3.4-3.4-3.4z"/></svg>
+          <p>Digite o nome do cliente ou da oportunidade acima e clique em <strong>Buscar Deals</strong>.</p>
+        </div>
+      </div>
+
+      <!-- Footer action -->
+      <div class="pt-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+        <div class="flex items-center space-x-2">
+          <span>Não encontrou?</span>
+          <button type="button" onclick="promptManualHubSpotUrl()" class="text-orange-600 hover:underline font-bold">Colar URL manualmente</button>
+        </div>
+        <button type="button" onclick="closeHubSpotSearch()" class="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold text-xs">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: CONFIGURAÇÃO DO HUBSPOT CRM -->
+  <!-- ========================================== -->
+  <div id="modal-hubspot-config" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl border border-slate-200 space-y-5">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <div class="flex items-center space-x-2.5">
+          <div class="p-2.5 bg-orange-500/10 text-orange-600 rounded-2xl">
+            <svg class="w-6 h-6 fill-current text-orange-500" viewBox="0 0 24 24"><path d="M18.8 7.3c-.9 0-1.7.5-2.1 1.2L12.9 6c.1-.3.1-.6.1-.9 0-1.9-1.5-3.4-3.4s-3.4 1.5-3.4 3.4c0 .8.3 1.5.7 2.1l-2.7 2.7c-.5-.3-1.1-.5-1.7-.5-1.9 0-3.4 1.5-3.4 3.4s1.5 3.4 3.4 3.4c1.6 0 2.9-1.1 3.3-2.6l4.6 2.7c-.1.4-.1.8-.1 1.2 0 2.2 1.8 4 4 4s4-1.8 4-4-1.8-4-4-4c-.7 0-1.4.2-2 .5L9.6 11c.1-.4.2-.8.2-1.2 0-.2 0-.5-.1-.7l3.8-2.5c.6.9 1.6 1.5 2.7 1.5 1.9 0 3.4-1.5 3.4-3.4s-1.5-3.4-3.4-3.4z"/></svg>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-slate-900">Configuração HubSpot CRM</h3>
+            <p class="text-xs text-slate-500">Credenciais da API e identificador do portal da Servinformacion</p>
+          </div>
+        </div>
+        <button onclick="closeHubSpotConfigModal()" class="text-slate-400 hover:text-slate-600 p-2">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <div>
+          <label class="block font-bold uppercase text-slate-700 mb-1">HubSpot Portal / Hub ID</label>
+          <input type="text" id="cfg-hubspot-portal-id" value="8388367" placeholder="Ex: 8388367" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-sm focus:border-orange-500 focus:outline-none">
+          <p class="text-[11px] text-slate-400 mt-1">Identificador da conta Servinformacion no HubSpot.</p>
+        </div>
+
+        <div>
+          <label class="block font-bold uppercase text-slate-700 mb-1">Private App Access Token (Bearer)</label>
+          <div class="relative">
+            <input type="password" id="cfg-hubspot-token" value="" placeholder="Token configurado no servidor (.env) ou digite aqui..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-xs focus:border-orange-500 focus:outline-none pr-10">
+            <button type="button" onclick="toggleTokenVisibility()" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+              <i data-lucide="eye" id="icon-toggle-token" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">Token de aplicativo privado configurado no servidor e pronto para uso.</p>
+        </div>
+
+        <div id="hubspot-test-status" class="p-3.5 rounded-xl bg-orange-50 border border-orange-200 text-orange-800 text-xs flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="hubspot-test-text">HubSpot API: Validada e pronta</span>
+          </div>
+          <button type="button" onclick="testHubSpotConnection()" class="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg text-[11px] shadow-sm transition">
+            Testar Agora
+          </button>
+        </div>
+      </div>
+
+      <div class="pt-4 border-t border-slate-200 flex items-center justify-end space-x-3">
+        <button type="button" onclick="closeHubSpotConfigModal()" class="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold text-xs">
+          Cancelar
+        </button>
+        <button type="button" onclick="saveHubSpotConfig()" class="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow transition flex items-center space-x-1.5">
+          <i data-lucide="check" class="w-4 h-4"></i>
+          <span>Salvar Configuração</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT LOGIC -->
+  <script src="app.js"></script>
+</body>
+</html>
