@@ -1018,6 +1018,17 @@
         </button>
       </form>
 
+      <!-- Direct paste shortcut bar -->
+      <div class="px-3.5 py-2 bg-orange-50/70 rounded-xl border border-orange-200 flex items-center justify-between text-xs">
+        <div class="flex items-center space-x-2 text-slate-700">
+          <i data-lucide="link" class="w-3.5 h-3.5 text-orange-600"></i>
+          <span class="text-[11px]">Já está com a página do Deal aberta no CRM?</span>
+        </div>
+        <button type="button" onclick="promptManualHubSpotUrl()" class="px-2.5 py-1 bg-white hover:bg-orange-100 text-orange-700 border border-orange-300 rounded-lg text-[11px] font-bold transition shadow-xs flex items-center space-x-1">
+          <span>Colar Link Direto</span>
+        </button>
+      </div>
+
       <!-- Target Opp Notice (if searching for a specific opp) -->
       <div id="hubspot-target-banner" class="hidden p-3 rounded-xl bg-orange-50 border border-orange-200 text-xs text-orange-800 flex items-center justify-between">
         <span id="hubspot-target-text">Vincular selecionado à proposta: <strong>Cliente</strong></span>

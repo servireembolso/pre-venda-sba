@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/hubspot/search",
+      "destination": "/api/hubspot/search.js"
+    },
+    {
+      "source": "/api/hubspot/test",
+      "destination": "/api/hubspot/test.js"
+    },
+    {
+      "source": "/api/sheets/sync",
+      "destination": "/api/sheets/sync.js"
+    }
+  ]
+}

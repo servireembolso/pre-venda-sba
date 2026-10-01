@@ -2132,32 +2132,60 @@ async function syncSpecialistSheets(specialist) {
   }
 
   try {
-    const syncUrl = `/api/sheets/sync?sheet_id=${encodeURIComponent(sheetId)}&sheet_name=${encodeURIComponent(sheetName)}&specialist=${encodeURIComponent(specialist)}`;
-    const res = await fetch(syncUrl);
-    if (!res.ok) {
-      throw new Error(`Erro na resposta do servidor (${res.status})`);
+    let loadedData = null;
+    let countLoaded = 0;
+
+    // 1. Try local or cloud backend endpoint
+    try {
+      const syncUrl = `/api/sheets/sync?sheet_id=${encodeURIComponent(sheetId)}&sheet_name=${encodeURIComponent(sheetName)}&specialist=${encodeURIComponent(specialist)}`;
+      const res = await fetch(syncUrl);
+      if (res.ok) {
+        const text = await res.text();
+        if (text && !text.includes('<!DOCTYPE')) {
+          const json = JSON.parse(text);
+          if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
+            loadedData = json.data;
+            countLoaded = json.count || loadedData.length;
+          }
+        }
+      }
+    } catch (_beErr) {
+      // Backend not running, proceed to direct Google Sheets client-side fetch
     }
-    const json = await res.json();
-    if (!json.ok) {
-      throw new Error(json.error || 'Falha ao sincronizar');
+
+    // 2. Direct browser fetch fallback (works 100% on GitHub Pages without any backend!)
+    if (!loadedData) {
+      if (statusText) statusText.textContent = `Carregando dados direto do Google Sheets (${specialist})...`;
+      const directCsvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+      const csvRes = await fetch(directCsvUrl);
+      if (!csvRes.ok) {
+        throw new Error(`Não foi possível baixar a planilha do Google Sheets (${csvRes.status}). Certifique-se de que a planilha está com compartilhamento público ("Qualquer pessoa com o link pode ler").`);
+      }
+      const csvText = await csvRes.text();
+      loadedData = parseOppsCsvToObjects(csvText, specialist);
+      countLoaded = loadedData.length;
+    }
+
+    if (!loadedData || loadedData.length === 0) {
+      throw new Error('Nenhuma linha de proposta válida encontrada na planilha.');
     }
 
     // Merge non-destructively
-    mergeSpecialistOpps(json.data, specialist);
+    mergeSpecialistOpps(loadedData, specialist);
 
     const now = new Date();
     const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    if (statusText) statusText.textContent = `Google Sheets ${specialist} Conectado (${json.count} propostas)`;
+    if (statusText) statusText.textContent = `Google Sheets ${specialist} Conectado (${countLoaded} propostas)`;
     const lastUpdate = document.getElementById('sync-last-update');
     if (lastUpdate) lastUpdate.textContent = `Última atualização: Hoje às ${timeStr}`;
 
     if (feedback) {
       feedback.className = 'p-3 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 block';
-      feedback.textContent = `✓ Sucesso! ${json.count} propostas do ${specialist} sincronizadas. Total da equipe: ${state.opps.length} propostas.`;
+      feedback.textContent = `✓ Sucesso! ${countLoaded} propostas do ${specialist} sincronizadas. Total da equipe: ${state.opps.length} propostas.`;
     }
 
     updateModalBadges();
-    alert(`Planilha do ${specialist} sincronizada com sucesso!\n\n${json.count} propostas carregadas.\nTotal consolidado na equipe: ${state.opps.length} propostas.\nOs dados do outro arquiteto continuam 100% preservados!`);
+    alert(`Planilha do ${specialist} sincronizada com sucesso!\n\n${countLoaded} propostas carregadas.\nTotal consolidado na equipe: ${state.opps.length} propostas.\nOs dados do outro arquiteto continuam 100% preservados!`);
   } catch (err) {
     console.error(`Erro ao sincronizar ${specialist}:`, err);
     if (feedback) {
@@ -2569,12 +2597,14 @@ async function importSpreadsheetFile(file, targetSpecialist = null) {
 }
 
 
-// Parse Opps CSV supporting both 5-column and 6-column structures
-function parseAndApplyOppsCSV(csvText, targetSpecialist = null) {
+// Parse Opps CSV into array of structured opportunity objects
+function parseOppsCsvToObjects(csvText, targetSpecialist = null) {
   const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-  if (!parsed.data || parsed.data.length === 0) return;
+  if (!parsed.data || parsed.data.length === 0) return [];
 
-  const normalized = parsed.data.map((row, index) => {
+  const prefix = targetSpecialist === 'Vinicius' ? 'VIN' : 'DAN';
+
+  return parsed.data.map((row, index) => {
     const keys = Object.keys(row);
     
     // Fuzzy matching for columns
@@ -2591,14 +2621,12 @@ function parseAndApplyOppsCSV(csvText, targetSpecialist = null) {
       return '';
     };
 
-    // Extract raw fields supporting:
-    // Schema 1: Coluna 1, Cliente, Demanda, Link Oportunidade, Comercial
-    // Schema 2: Nome da Oportunidades, Data AM Responsável, Data da Proposta Comercial, Status, Notas/Próximo Passo, Hubspot
+    // Extract raw fields
     const rawCliente = getVal(['cliente', 'empresa', 'conta', 'nome', 'oportunidade']) || `Oportunidade ${index + 1}`;
     const rawDemanda = getVal(['demanda', 'tipo', 'servico']) || '';
     const rawDoc = getVal(['linkoportunidade', 'link', 'documento', 'proposta', 'sow', 'deck']) || '';
     const rawComercial = getVal(['comercial', 'amresponsavel', 'am', 'vendedor']) || 'AM Responsável';
-    const rawPreVenda = getVal(['prevendas', 'prevenda', 'autoria', 'arquiteto', 'especialista', 'responsaveltecnico']) || '';
+    const rawPreVenda = getVal(['prevendas', 'prevenda', 'autoria', 'arquiteto', 'especialista', 'responsaveltecnico']) || (targetSpecialist || 'Danilo');
     const rawData = getVal(['datadaproposta', 'proposta', 'data']) || '2026-10-15';
     const rawStatus = getVal(['status', 'fase', 'estagio']) || 'Proposta Técnica Entregue';
     const rawNotas = getVal(['notas', 'proximopasso', 'passo', 'observacao', 'escopo']) || '';
@@ -2618,7 +2646,7 @@ function parseAndApplyOppsCSV(csvText, targetSpecialist = null) {
     const cleanCliente = rawCliente.replace(/\s+\d+\s*(?:contas|licen[cç]as|seats|usu[aá]rios)?/gi, '').trim() || rawCliente;
 
     // Detect Solution / SKU
-    let sku = 'Google Workspace';
+    let sku = targetSpecialist === 'Vinicius' ? 'GCP Foundation & Consultoria' : 'Google Workspace';
     const textAll = `${cleanCliente} ${rawDemanda} ${rawDoc} ${rawNotas}`.toLowerCase();
     if (textAll.includes('gemini')) sku = 'Gemini Enterprise';
     else if (textAll.includes('earth')) sku = 'Google Earth Platform';
@@ -2629,15 +2657,13 @@ function parseAndApplyOppsCSV(csvText, targetSpecialist = null) {
     else if (textAll.includes('bolsa de horas')) sku = 'Bolsa de Horas GCP';
     else if (textAll.includes('provisionamento')) sku = 'GCP Provisionamento Infra';
 
-    // Check if doc link is already known or in existing state
     let docUrl = rawDoc.startsWith('http') ? rawDoc : '';
     let docTipo = 'Google Docs';
     if (docUrl.includes('presentation') || docUrl.includes('slide') || textAll.includes('apresentacao')) {
       docTipo = 'Google Slides';
     }
 
-    // Preserve rich URLs if matched from previous state
-    const existing = state.opps.find(o => o.cliente.toLowerCase() === cleanCliente.toLowerCase() || (o.docTitulo && o.docTitulo.toLowerCase().includes(rawDoc.toLowerCase())));
+    const existing = (state.opps || []).find(o => o.cliente.toLowerCase() === cleanCliente.toLowerCase() || (o.docTitulo && o.docTitulo.toLowerCase().includes(rawDoc.toLowerCase())));
     if (existing) {
       if (existing.docUrl && !docUrl) {
         docUrl = existing.docUrl;
@@ -2648,7 +2674,6 @@ function parseAndApplyOppsCSV(csvText, targetSpecialist = null) {
       }
     }
 
-    // Extract financial values if present in sheet or preserve from existing
     const rawValLic = getVal(['valorlicenca', 'licencasbrl', 'valoranual', 'anual', 'mrr', 'arr', 'licenca', 'total']);
     const rawValServ = getVal(['valorservico', 'servicos', 'sow', 'implantacao', 'consultoria']);
 
@@ -2700,17 +2725,19 @@ function parseAndApplyOppsCSV(csvText, targetSpecialist = null) {
     }
 
     const escopoDisplay = rawDemanda ? `${rawDemanda}${rawDoc ? ' — ' + rawDoc : ''}` : (rawNotas || 'Defesa técnica, arquitetura e proposta comercial');
-
-    const preVendaFinal = rawPreVenda || (existing && existing.preVenda) || 'Danilo';
+    const preVendaFinal = targetSpecialist || rawPreVenda || (existing && existing.preVenda) || 'Danilo';
+    const isVin = preVendaFinal.toLowerCase().includes('vinicius');
 
     return {
-      id: `SERV-${101 + index}`,
+      id: `${prefix}-${101 + index}`,
       cliente: cleanCliente,
       clienteCompleto: rawCliente,
       demanda: rawDemanda,
       comercial: rawComercial,
-      preVenda: preVendaFinal,
-      autoria: `${preVendaFinal} — Arquiteto de Soluções Google | Servinformacion Pré-Vendas`,
+      preVenda: isVin ? 'Vinicius' : 'Danilo',
+      autoria: isVin
+        ? 'Vinicius — Arquiteto GCP (Google Cloud Platform) | Servinformacion'
+        : 'Danilo — Especialista GWS & Gemini | Servinformacion Pré-Vendas',
       sku: sku,
       licencas: licencas,
       valorLicencas: valorLicencas,
@@ -2718,7 +2745,7 @@ function parseAndApplyOppsCSV(csvText, targetSpecialist = null) {
       estagio: rawStatus,
       previsao: rawData,
       escopo: escopoDisplay,
-      docTitulo: rawDoc,
+      docTitulo: rawDoc || `${cleanCliente} — Proposta Técnica`,
       docUrl: docUrl,
       docTipo: docTipo,
       hubspotUrl: hubspotUrl,
@@ -2726,8 +2753,12 @@ function parseAndApplyOppsCSV(csvText, targetSpecialist = null) {
       origem: 'Planilha Google Sheets Oficial — Servinformacion'
     };
   });
+}
 
-  // Apply non-destructively
+// Parse Opps CSV supporting both 5-column and 6-column structures
+function parseAndApplyOppsCSV(csvText, targetSpecialist = null) {
+  const normalized = parseOppsCsvToObjects(csvText, targetSpecialist);
+  if (!normalized || normalized.length === 0) return;
   mergeSpecialistOpps(normalized, targetSpecialist);
 }
 
@@ -2810,6 +2841,7 @@ function exportOppsCSV() {
 const hubspotConfig = {
   token: localStorage.getItem('seidor_hubspot_token') || '',
   portalId: localStorage.getItem('seidor_hubspot_portal') || '8388367',
+  apiBaseUrl: localStorage.getItem('seidor_api_base_url') || '',
   apiUrl: '/api/hubspot'
 };
 
@@ -2925,8 +2957,18 @@ async function searchHubSpotDeals(query) {
       portal_id: hubspotConfig.portalId
     });
 
-    const res = await fetch(`/api/hubspot/search?${params.toString()}`);
-    const data = await res.json();
+    const baseUrl = (hubspotConfig.apiBaseUrl || '').replace(/\/+$/, '');
+    const res = await fetch(`${baseUrl}/api/hubspot/search?${params.toString()}`);
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (_parseErr) {
+      if (res.status === 404 || text.includes('<!DOCTYPE') || text.includes('<html')) {
+        throw new Error('Ambiente Estático (GitHub Pages): Esta versão do sistema está no GitHub Pages, onde servidores de backend (Python) não executam na nuvem. Você pode colar a URL do Deal abaixo ou executar localmente via python server.py.');
+      }
+      throw new Error(`Resposta inválida do servidor: ${text.slice(0, 100)}`);
+    }
 
     if (!res.ok || !data.ok) {
       throw new Error(data.error || `Erro de conexão com o HubSpot (Status ${res.status})`);
@@ -2936,25 +2978,120 @@ async function searchHubSpotDeals(query) {
     renderHubSpotSearchResults(currentHubSpotResults, query);
   } catch (err) {
     console.error('Erro na busca HubSpot:', err);
-    resultsContainer.innerHTML = `
-      <div class="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-xs space-y-2">
-        <div class="font-bold flex items-center space-x-1.5">
-          <i data-lucide="alert-circle" class="w-4 h-4 text-red-600"></i>
-          <span>Não foi possível consultar o HubSpot</span>
+    const isStaticEnv = err.message.includes('Ambiente Estático') || err.message.includes('GitHub Pages') || err.message.includes('<!DOCTYPE');
+
+    if (isStaticEnv) {
+      resultsContainer.innerHTML = `
+        <div class="p-5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-3.5">
+          <div class="flex items-center space-x-2 font-bold text-amber-800">
+            <i data-lucide="info" class="w-4 h-4 text-amber-600"></i>
+            <span>Ambiente Estático (GitHub Pages) Detectado</span>
+          </div>
+          <p class="text-[11px] text-amber-700 leading-relaxed">
+            O <strong>GitHub Pages</strong> não executa servidores Python para consultar a API privada do HubSpot CRM diretamente pelo navegador.
+          </p>
+          <div class="p-3.5 bg-white rounded-xl border border-amber-300 space-y-2.5 shadow-sm">
+            <label class="block font-bold text-[11px] text-slate-800">
+              👉 Vincular Deal do HubSpot Manualmente:
+            </label>
+            <div class="flex items-center space-x-2">
+              <input type="url" id="inline-hubspot-deal-url" placeholder="Ex: https://app.hubspot.com/contacts/8388367/deal/..." class="flex-1 px-3 py-2 rounded-xl border border-slate-300 font-mono text-xs focus:border-orange-500 focus:outline-none">
+              <button type="button" onclick="applyInlineHubSpotUrl()" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-xs rounded-xl shadow transition whitespace-nowrap">
+                Vincular Deal
+              </button>
+            </div>
+            <p class="text-[10px] text-slate-400">Copie o link do deal aberto no seu navegador HubSpot e clique em Vincular Deal.</p>
+          </div>
+          <div class="pt-1 flex items-center justify-between text-[10px] text-slate-500">
+            <span>Para busca automática: execute <code>python server.py</code> localmente ou conecte ao Vercel.</span>
+            <button type="button" onclick="openHubSpotConfigModal()" class="text-amber-800 underline font-bold">Configurar API</button>
+          </div>
         </div>
-        <p class="text-[11px] text-red-700 leading-relaxed">${escapeHtml(err.message)}</p>
-        <div class="pt-2 flex items-center space-x-3">
-          <button onclick="openHubSpotConfigModal()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition shadow-sm">
-            Verificar Conexão HubSpot
-          </button>
-          <button onclick="promptManualHubSpotUrl()" class="px-3 py-1.5 bg-white border border-red-300 hover:bg-red-50 text-red-700 rounded-xl text-xs font-bold transition">
-            Colar Link Manualmente
-          </button>
+      `;
+    } else {
+      resultsContainer.innerHTML = `
+        <div class="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-xs space-y-2">
+          <div class="font-bold flex items-center space-x-1.5">
+            <i data-lucide="alert-circle" class="w-4 h-4 text-red-600"></i>
+            <span>Não foi possível consultar o HubSpot</span>
+          </div>
+          <p class="text-[11px] text-red-700 leading-relaxed">${escapeHtml(err.message)}</p>
+          <div class="pt-2 flex items-center space-x-3">
+            <button onclick="openHubSpotConfigModal()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition shadow-sm">
+              Verificar Conexão HubSpot
+            </button>
+            <button onclick="promptManualHubSpotUrl()" class="px-3 py-1.5 bg-white border border-red-300 hover:bg-red-50 text-red-700 rounded-xl text-xs font-bold transition">
+              Colar Link Manualmente
+            </button>
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    }
     lucide.createIcons();
   }
+}
+
+// Apply Inline HubSpot URL from static notice
+function applyInlineHubSpotUrl() {
+  const input = document.getElementById('inline-hubspot-deal-url');
+  if (!input || !input.value.trim()) {
+    alert('Por favor, informe a URL do Deal no HubSpot.');
+    return;
+  }
+  const url = input.value.trim();
+  if (!url.startsWith('http')) {
+    alert('A URL deve começar com https://');
+    return;
+  }
+
+  const targetOppId = document.getElementById('hubspot-target-opp-id').value;
+  const match = url.match(/deal\/(\d+)/i);
+  const dealId = match ? match[1] : 'HS-' + Date.now().toString().slice(-4);
+
+  if (targetOppId === '__new__') {
+    const urlInput = document.getElementById('new-opp-hubspot-url');
+    if (urlInput) urlInput.value = url;
+    closeHubSpotSearch();
+    alert(`Link do Deal (${dealId}) vinculado à nova proposta!`);
+    return;
+  }
+
+  if (targetOppId) {
+    const opp = state.opps.find(o => o.id === targetOppId);
+    if (opp) {
+      opp.hubspotUrl = url;
+      opp.hubspot = url;
+      localStorage.setItem('seidor_opps_data', JSON.stringify(state.opps));
+      renderAll();
+
+      const detailsModal = document.getElementById('modal-details');
+      if (detailsModal && !detailsModal.classList.contains('hidden')) {
+        viewOppDetail(targetOppId);
+      }
+      closeHubSpotSearch();
+      alert(`Deal do HubSpot (${dealId}) vinculado com sucesso para "${opp.cliente}"!`);
+      return;
+    }
+  }
+
+  // Case 3: No target opp pre-selected, prompt user to choose
+  const oppNames = state.opps.slice(0, 15).map((o, i) => `${i + 1}. ${o.cliente} (${o.sku || 'GWS'})`).join('\n');
+  const choice = prompt(`Selecione o número da proposta para vincular este Deal (${dealId}):\n\n${oppNames}\n\nDigite o número de 1 a ${Math.min(15, state.opps.length)}:`);
+  if (!choice) return;
+
+  const idx = parseInt(choice.trim(), 10) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= state.opps.length) {
+    alert('Número de proposta inválido.');
+    return;
+  }
+
+  const selectedOpp = state.opps[idx];
+  selectedOpp.hubspotUrl = url;
+  selectedOpp.hubspot = url;
+  localStorage.setItem('seidor_opps_data', JSON.stringify(state.opps));
+  renderAll();
+  closeHubSpotSearch();
+  alert(`Deal do HubSpot (${dealId}) vinculado com sucesso para "${selectedOpp.cliente}"!`);
 }
 
 // Render Results in Modal
@@ -3156,7 +3293,27 @@ function promptManualHubSpotUrl() {
     return;
   }
 
-  alert('Por favor, abra primeiro os detalhes da oportunidade ou a lista de propostas para vincular a URL.');
+  // Case 3: Opened without target opp, ask for URL and which opp to link to
+  const url = prompt('Cole a URL completa do Deal no HubSpot (https://app.hubspot.com/...):');
+  if (!url || !url.trim().startsWith('http')) return;
+
+  const oppNames = state.opps.slice(0, 15).map((o, i) => `${i + 1}. ${o.cliente} (${o.sku || 'GWS'})`).join('\n');
+  const choice = prompt(`Selecione o número da proposta para vincular este Deal:\n\n${oppNames}\n\nDigite o número de 1 a ${Math.min(15, state.opps.length)}:`);
+  if (!choice) return;
+
+  const idx = parseInt(choice.trim(), 10) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= state.opps.length) {
+    alert('Número de proposta inválido.');
+    return;
+  }
+
+  const selectedOpp = state.opps[idx];
+  selectedOpp.hubspotUrl = url.trim();
+  selectedOpp.hubspot = url.trim();
+  localStorage.setItem('seidor_opps_data', JSON.stringify(state.opps));
+  renderAll();
+  closeHubSpotSearch();
+  alert(`Deal do HubSpot vinculado com sucesso para "${selectedOpp.cliente}"!`);
 }
 
 // Open Config Modal
@@ -3211,8 +3368,18 @@ async function testHubSpotConnection() {
   if (testText) testText.textContent = 'Validando token com a API do HubSpot...';
 
   try {
-    const res = await fetch(`/api/hubspot/test?token=${encodeURIComponent(token)}`);
-    const data = await res.json();
+    const baseUrl = (hubspotConfig.apiBaseUrl || '').replace(/\/+$/, '');
+    const res = await fetch(`${baseUrl}/api/hubspot/test?token=${encodeURIComponent(token)}`);
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (_e) {
+      if (res.status === 404 || text.includes('<!DOCTYPE')) {
+        throw new Error('Ambiente Estático (GitHub Pages): Teste de API requer servidor local (python server.py) ou deploy no Vercel.');
+      }
+      throw new Error(`Resposta inválida: ${text.slice(0, 70)}`);
+    }
 
     if (data.ok) {
       if (testContainer) {
@@ -3226,10 +3393,10 @@ async function testHubSpotConnection() {
     }
   } catch (err) {
     if (testContainer) {
-      testContainer.className = 'p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between';
+      testContainer.className = 'p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center justify-between';
     }
     if (testText) {
-      testText.textContent = `Erro na validação: ${err.message}`;
+      testText.textContent = `${err.message}`;
     }
   }
 }
